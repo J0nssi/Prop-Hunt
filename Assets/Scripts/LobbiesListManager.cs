@@ -74,4 +74,9 @@ public class LobbiesListManager : MonoBehaviour
 
         lobbiesMenu.SetActive(false);
     }
+
+    public void RefreshLobbies()
+    {
+        SteamLobby.Instance.GetLobbiesList();
+    }
 }

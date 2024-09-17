@@ -5,6 +5,8 @@ using Mirror;
 using Steamworks;
 using UnityEngine.UI;
 using System.Linq;
+using UnityEngine.SceneManagement;
+using Mirror.FizzySteam;
 
 public class LobbyController : MonoBehaviour
 {
@@ -206,8 +208,15 @@ public class LobbyController : MonoBehaviour
                 ObjectToRemove = null;
             }
         }
+        // Load the main menu for the local player
+    }
 
+    public void LeaveLobby()
+    {
+        SteamMatchmaking.LeaveLobby(new CSteamID(CurrentLobbyID));
+        CurrentLobbyID = 0;
 
+        SceneManager.LoadScene("MainMenu");
     }
 
     public void StartGame(string SceneName)
