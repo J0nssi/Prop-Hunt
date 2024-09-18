@@ -22,11 +22,6 @@ public class PlayerObjectController : NetworkBehaviour
     [SyncVar(hook = nameof(OnRoleChanged))]
     public PlayerRole Role;
 
-    [SyncVar(hook = nameof(OnColorChanged))]
-    private Color playerColor;
-
-    private Renderer playerRenderer;
-
     private CustomNetworkManager manager;
 
     private CustomNetworkManager Manager
@@ -44,13 +39,6 @@ public class PlayerObjectController : NetworkBehaviour
     private void Start()
     {
         DontDestroyOnLoad(this.gameObject);
-        Transform cubeTransform = transform.Find("Player/Cube"); // Adjust the path to your child object
-        if (cubeTransform != null)
-        {
-            playerRenderer = cubeTransform.GetComponent<Renderer>(); // Get the Renderer from the Cube
-        }
-
-        // Set initial appearance based on the role
         UpdatePlayerAppearanceBasedOnRole(Role);
     }
 
@@ -142,36 +130,11 @@ public class PlayerObjectController : NetworkBehaviour
         }
     }
 
-    private void OnColorChanged(Color oldColor, Color newColor)
-    {
-        if (playerRenderer != null)
-        {
-            playerRenderer.material.color = newColor;
-        }
-    }
-
     private void UpdatePlayerAppearanceBasedOnRole(PlayerRole role)
     {
-        Color color;
-        if (role == PlayerRole.Hunter)
-        {
-            color = Color.red;
-        }
-        else // PlayerRole.Prop
-        {
-            color = Color.blue;
-        }
 
-        // Update the SyncVar for color
-        CmdUpdateColor(color);
     }
 
-    // Command to update the color on the server
-    [Command]
-    private void CmdUpdateColor(Color color)
-    {
-        playerColor = color;
-    }
 
     private void Update()
     {

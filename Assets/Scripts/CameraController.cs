@@ -12,5 +12,12 @@ public class CameraController : NetworkBehaviour
     {
         cameraHolder.SetActive(true);
     }
-
+    void Start()
+    {
+        // Disable the camera for all players initially, except for the local player
+        if (!isOwned)
+        {
+            cameraHolder.SetActive(false); // Ensure the camera is off for non-local players.
+        }
+    }
 }
