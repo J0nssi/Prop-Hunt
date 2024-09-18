@@ -4,6 +4,7 @@ using UnityEngine;
 using Mirror;
 using UnityEngine.SceneManagement;
 using Steamworks;
+using static PlayerObjectController;
 
 public class CustomNetworkManager : NetworkManager
 {
@@ -25,7 +26,27 @@ public class CustomNetworkManager : NetworkManager
 
     public void StartGame(string SceneName)
     {
+        AssignRoles();
         ServerChangeScene(SceneName);
     }
+    private void AssignRoles()
+    {
+        // Ensure there's at least one player
+        if (GamePlayers.Count == 0) return;
 
+        // Randomly pick one player to be the Hunter
+        int hunterIndex = Random.Range(0, GamePlayers.Count);
+
+        for (int i = 0; i < GamePlayers.Count; i++)
+        {
+            if (i == hunterIndex)
+            {
+                GamePlayers[i].Role = PlayerRole.Hunter;
+            }
+            else
+            {
+                GamePlayers[i].Role = PlayerRole.Prop;
+            }
+        }
+    }
 }
