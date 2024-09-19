@@ -13,6 +13,11 @@ public class PlayerObjectController : NetworkBehaviour
     [SyncVar(hook = nameof(PlayerNameUpdate))] public string PlayerName;
     [SyncVar(hook = nameof(PlayerReadyUpdate))] public bool Ready;
 
+    //Props
+    public GameObject[] PropModels;
+    private GameObject currentProp;
+
+    //Roles
     public enum PlayerRole
     {
         Hunter,
@@ -22,6 +27,25 @@ public class PlayerObjectController : NetworkBehaviour
     [SyncVar(hook = nameof(OnRoleChanged))]
     public PlayerRole Role;
 
+    private void OnRoleChanged(PlayerRole oldRole, PlayerRole newRole)
+    {
+        if (newRole == PlayerRole.Prop)
+        {
+            AssignProps();  // Only if the player is a Prop
+        }
+        else if (newRole == PlayerRole.Hunter)
+        {
+            Debug.Log("Assigned as Hunter.");
+        }
+    }
+
+    [Command]
+    public void CmdSetRole(PlayerRole newRole)
+    {
+        Role = newRole;
+    }
+
+    //Network manager
     private CustomNetworkManager manager;
 
     private CustomNetworkManager Manager
@@ -39,7 +63,7 @@ public class PlayerObjectController : NetworkBehaviour
     private void Start()
     {
         DontDestroyOnLoad(this.gameObject);
-        UpdatePlayerAppearanceBasedOnRole(Role);
+        currentProp = null;
     }
 
     private void PlayerReadyUpdate(bool oldValue, bool newValue)
@@ -121,21 +145,6 @@ public class PlayerObjectController : NetworkBehaviour
         manager.StartGame(SceneName);
     }
 
-    private void OnRoleChanged(PlayerRole oldRole, PlayerRole newRole)
-    {
-        // Update appearance based on the new role
-        if (isClient)
-        {
-            UpdatePlayerAppearanceBasedOnRole(newRole);
-        }
-    }
-
-    private void UpdatePlayerAppearanceBasedOnRole(PlayerRole role)
-    {
-
-    }
-
-
     private void Update()
     {
         if (isLocalPlayer)
@@ -146,8 +155,23 @@ public class PlayerObjectController : NetworkBehaviour
             }
             else if (Role == PlayerRole.Prop)
             {
-                HandlePropAbilities();
+                if (Input.GetKeyDown(KeyCode.F))
+            {
+                CmdChangeProp();  // Request the server to change the prop
             }
+            }
+        }
+    }
+
+    public void AssignRole(PlayerRole newRole)
+    {
+        if (isServer)
+        {
+            Role = newRole;
+        }
+        else
+        {
+            CmdSetRole(newRole);
         }
     }
 
@@ -157,9 +181,100 @@ public class PlayerObjectController : NetworkBehaviour
         // Color should already be handled by OnColorChanged
     }
 
-    private void HandlePropAbilities()
+    private void AssignProps()
     {
-        // Implement Prop-specific abilities (e.g., hiding, transforming)
-        // Color should already be handled by OnColorChanged
+        if (isServer)
+        {
+            // Debug log to check if this method is being called
+            Debug.Log("AssignProps called.");
+            
+            GameObject chosenProp = null;
+            int randomIndex;
+
+            // Make sure to choose a prop that is different from the current one
+            do
+            {
+                // Randomly select a prop model
+                randomIndex = Random.Range(0, PropModels.Length);
+                chosenProp = PropModels[randomIndex];
+                Debug.Log($"Trying to choose prop: {chosenProp.name}");
+            } while (currentProp != null && chosenProp.name == currentProp.name);
+
+            // Step 3: Instantiate the chosen prop model on the server
+            GameObject propInstance = Instantiate(chosenProp, transform.position, Quaternion.identity);
+
+            // Attach the prop to the player by making it a child of the player
+            propInstance.transform.SetParent(transform);
+
+            // Ensure the camera's follow target (if any) stays the same
+            Transform followTarget = transform.Find("CameraHolder/FollowTarget");
+            if (followTarget != null)
+            {
+                // Adjust prop position to match where the cubes were
+                propInstance.transform.localPosition = followTarget.localPosition;
+                propInstance.transform.localRotation = Quaternion.identity;
+            }
+
+            // Step 4: Spawn the prop on the network and inform all clients
+            NetworkServer.Spawn(propInstance);
+            currentProp = propInstance;
+            // Use ClientRpc to sync the prop instantiation across all clients
+            RpcAssignPropOnClient(propInstance);
+        }
+    }
+    [ClientRpc]
+    private void RpcAssignPropOnClient(GameObject propInstance)
+    {
+        if (!isServer)
+        {
+            // Attach the prop to the player by making it a child of the player
+            propInstance.transform.SetParent(transform);
+
+            // Ensure the camera's follow target (if any) stays the same
+            Transform followTarget = transform.Find("CameraHolder/FollowTarget");
+            if (followTarget != null)
+            {
+                propInstance.transform.localPosition = followTarget.localPosition;
+                propInstance.transform.localRotation = Quaternion.identity;
+            }
+            currentProp = propInstance;
+        }
+    }
+    [Command]
+    private void CmdChangeProp()
+    {
+        Debug.Log("CmdChangeProp called.");
+        ChangeProp();  // Run on server
+        RpcChangeProp();  // Sync with all clients
+    }
+
+    [ClientRpc]
+    private void RpcChangeProp()
+    {
+        Debug.Log("RpcChangeProp called.");
+        ChangeProp();  // Also run on clients
+    }
+
+    private void ChangeProp()
+    {
+        Debug.Log("ChangeProp called.");
+        if (currentProp != null)
+        {
+            // Ensure this logic runs on both the server and clients
+            if (currentProp != null)
+            {
+                Debug.Log($"Destroying current prop: {currentProp.name}");
+                Destroy(currentProp);
+                NetworkServer.Destroy(currentProp);
+                currentProp = null;
+            }
+            else
+            {
+                Debug.Log("No current prop to destroy.");
+            }
+
+            // Assign a new random prop from the list
+            AssignProps();
+        }
     }
 }

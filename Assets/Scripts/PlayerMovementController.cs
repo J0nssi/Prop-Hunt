@@ -57,7 +57,7 @@ public class PlayerMovemenController : NetworkBehaviour
         float xDirection = Input.GetAxisRaw("Horizontal");
         float zDirection = Input.GetAxisRaw("Vertical");
 
-        Vector3 moveDirection = new Vector3(xDirection, 0.0f, zDirection).normalized;
+        Vector3 moveDirection = new Vector3(xDirection, 0f, zDirection).normalized;
 
         if(moveDirection.magnitude >= 0.1f)
         {
