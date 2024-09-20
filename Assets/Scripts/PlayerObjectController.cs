@@ -16,6 +16,8 @@ public class PlayerObjectController : NetworkBehaviour
     //Props
     public GameObject[] PropModels;
     private GameObject currentProp;
+    private GameObject currentPropPrefab;
+
 
     //Roles
     public enum PlayerRole
@@ -185,11 +187,10 @@ public class PlayerObjectController : NetworkBehaviour
     {
         if (isServer)
         {
-            // Debug log to check if this method is being called
-            Debug.Log("AssignProps called.");
             
             GameObject chosenProp = null;
             int randomIndex;
+            Debug.Log($"Current prop: {currentProp?.name}");
 
             // Make sure to choose a prop that is different from the current one
             do
@@ -198,54 +199,65 @@ public class PlayerObjectController : NetworkBehaviour
                 randomIndex = Random.Range(0, PropModels.Length);
                 chosenProp = PropModels[randomIndex];
                 Debug.Log($"Trying to choose prop: {chosenProp.name}");
-            } while (currentProp != null && chosenProp.name == currentProp.name);
+            } while (currentProp != null && chosenProp == currentPropPrefab);
 
             // Step 3: Instantiate the chosen prop model on the server
             GameObject propInstance = Instantiate(chosenProp, transform.position, Quaternion.identity);
 
             // Attach the prop to the player by making it a child of the player
-            propInstance.transform.SetParent(transform);
-
-            // Ensure the camera's follow target (if any) stays the same
-            Transform followTarget = transform.Find("CameraHolder/FollowTarget");
-            if (followTarget != null)
-            {
-                // Adjust prop position to match where the cubes were
-                propInstance.transform.localPosition = followTarget.localPosition;
-                propInstance.transform.localRotation = Quaternion.identity;
-            }
+            AttachAndPositionProp(propInstance);
 
             // Step 4: Spawn the prop on the network and inform all clients
-            NetworkServer.Spawn(propInstance);
+            NetworkServer.Spawn(propInstance, connectionToClient);
+            if (currentProp != null)
+            {
+                Debug.Log($"Destroying current prop: {currentProp.name}");
+                NetworkServer.Destroy(currentProp);
+            }
+
             currentProp = propInstance;
+            currentPropPrefab = chosenProp;
             // Use ClientRpc to sync the prop instantiation across all clients
             RpcAssignPropOnClient(propInstance);
         }
     }
+
     [ClientRpc]
     private void RpcAssignPropOnClient(GameObject propInstance)
     {
         if (!isServer)
         {
-            // Attach the prop to the player by making it a child of the player
-            propInstance.transform.SetParent(transform);
-
-            // Ensure the camera's follow target (if any) stays the same
-            Transform followTarget = transform.Find("CameraHolder/FollowTarget");
-            if (followTarget != null)
-            {
-                propInstance.transform.localPosition = followTarget.localPosition;
-                propInstance.transform.localRotation = Quaternion.identity;
-            }
+            AttachAndPositionProp(propInstance);
             currentProp = propInstance;
+            currentPropPrefab = propInstance;
         }
     }
+
+    private void AttachAndPositionProp(GameObject propInstance)
+    {
+        // Attach the prop as a child of the player
+        propInstance.transform.SetParent(transform);
+
+        Transform followTarget = transform.Find("CameraHolder/FollowTarget");
+        if (followTarget != null)
+        {
+            propInstance.transform.localPosition = followTarget.localPosition; // Position relative to the follow target
+        }
+        propInstance.transform.localRotation = Quaternion.identity;
+
+
+        // Optional: Ensure the prop has no impact on physics if necessary
+        Rigidbody rb = propInstance.GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.isKinematic = true; // Prevent physics from affecting movement
+        }
+    }
+
     [Command]
     private void CmdChangeProp()
     {
-        Debug.Log("CmdChangeProp called.");
         ChangeProp();  // Run on server
-        RpcChangeProp();  // Sync with all clients
     }
 
     [ClientRpc]
@@ -257,24 +269,6 @@ public class PlayerObjectController : NetworkBehaviour
 
     private void ChangeProp()
     {
-        Debug.Log("ChangeProp called.");
-        if (currentProp != null)
-        {
-            // Ensure this logic runs on both the server and clients
-            if (currentProp != null)
-            {
-                Debug.Log($"Destroying current prop: {currentProp.name}");
-                Destroy(currentProp);
-                NetworkServer.Destroy(currentProp);
-                currentProp = null;
-            }
-            else
-            {
-                Debug.Log("No current prop to destroy.");
-            }
-
-            // Assign a new random prop from the list
-            AssignProps();
-        }
+        AssignProps();
     }
 }
