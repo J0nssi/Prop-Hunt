@@ -228,6 +228,8 @@ public class PlayerObjectController : NetworkBehaviour
         if (!isServer)
         {
             AttachAndPositionProp(propInstance);
+            propInstance.transform.position = transform.position;
+            propInstance.transform.rotation = transform.rotation;
             currentProp = propInstance;
             currentPropPrefab = propInstance;
         }
