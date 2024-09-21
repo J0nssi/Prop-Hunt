@@ -31,11 +31,13 @@ public class CustomNetworkManager : NetworkManager
     }
     private void AssignRoles()
     {
+        /*
         for (int i = 0; i < GamePlayers.Count; i++)
         {
             GamePlayers[i].AssignRole(PlayerObjectController.PlayerRole.Prop);
         }
-        /*
+        */
+
         // Ensure there's at least one player
         if (GamePlayers.Count == 0) return;
 
@@ -52,6 +54,6 @@ public class CustomNetworkManager : NetworkManager
             {
                 GamePlayers[i].Role = PlayerRole.Prop;
             }
-        }*/
+        }
     }
 }

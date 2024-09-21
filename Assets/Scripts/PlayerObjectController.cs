@@ -13,6 +13,10 @@ public class PlayerObjectController : NetworkBehaviour
     [SyncVar(hook = nameof(PlayerNameUpdate))] public string PlayerName;
     [SyncVar(hook = nameof(PlayerReadyUpdate))] public bool Ready;
 
+    //Cameras
+    public GameObject FPSCamera;
+    public GameObject ThirdPersonCamera;
+
     //Props
     public GameObject[] PropModels;
     private GameObject currentProp;
@@ -34,10 +38,14 @@ public class PlayerObjectController : NetworkBehaviour
         if (newRole == PlayerRole.Prop)
         {
             AssignProps();  // Only if the player is a Prop
+            FPSCamera.SetActive(false);
+            ThirdPersonCamera.SetActive(true);
         }
         else if (newRole == PlayerRole.Hunter)
         {
             Debug.Log("Assigned as Hunter.");
+            FPSCamera.SetActive(true);
+            ThirdPersonCamera.SetActive(false);
         }
     }
 
