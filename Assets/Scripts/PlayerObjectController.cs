@@ -22,6 +22,9 @@ public class PlayerObjectController : NetworkBehaviour
     private GameObject currentProp;
     private GameObject currentPropPrefab;
 
+    private bool isPropFrozen = false;
+    private Vector3 frozenPosition; // Store the frozen position
+    private Quaternion frozenRotation;
 
     //Roles
     public enum PlayerRole
@@ -166,9 +169,14 @@ public class PlayerObjectController : NetworkBehaviour
             else if (Role == PlayerRole.Prop)
             {
                 if (Input.GetKeyDown(KeyCode.F))
-            {
-                CmdChangeProp();  // Request the server to change the prop
-            }
+                {
+                    CmdChangeProp();  // Request the server to change the prop
+                }
+                if (Input.GetKeyDown(KeyCode.R))
+                {
+                    CmdToggleFreezeProp();    // Request the server to freeze the prop
+                }
+
             }
         }
     }
@@ -280,5 +288,39 @@ public class PlayerObjectController : NetworkBehaviour
     private void ChangeProp()
     {
         AssignProps();
+    }
+
+    [Command]
+    private void CmdToggleFreezeProp()
+    {
+        isPropFrozen = !isPropFrozen; // Toggle the frozen state
+        RpcToggleFreezeProp(isPropFrozen);
+    }
+
+    [ClientRpc]
+    private void RpcToggleFreezeProp(bool frozen)
+    {
+        if (frozen)
+        {
+            frozenPosition = transform.position; // Store the current position
+            frozenRotation = transform.rotation; // Store the current rotation
+        }
+        else
+        {
+            // Optionally handle any logic for when the prop is unfrozen
+        }
+
+        // Update the frozen state
+        isPropFrozen = frozen;
+    }
+
+    private void FixedUpdate()
+    {
+        if (Role == PlayerRole.Prop && isPropFrozen)
+        {
+            // Reset the position and rotation to the frozen state
+            transform.position = frozenPosition;
+            transform.rotation = frozenRotation;
+        }
     }
 }

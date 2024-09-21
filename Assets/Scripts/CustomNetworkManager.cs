@@ -31,29 +31,29 @@ public class CustomNetworkManager : NetworkManager
     }
     private void AssignRoles()
     {
-        /*
+        
         for (int i = 0; i < GamePlayers.Count; i++)
         {
             GamePlayers[i].AssignRole(PlayerObjectController.PlayerRole.Prop);
         }
-        */
 
-        // Ensure there's at least one player
-        if (GamePlayers.Count == 0) return;
+        /*
+    // Ensure there's at least one player
+    if (GamePlayers.Count == 0) return;
 
-        // Randomly pick one player to be the Hunter
-        int hunterIndex = Random.Range(0, GamePlayers.Count);
+    // Randomly pick one player to be the Hunter
+    int hunterIndex = Random.Range(0, GamePlayers.Count);
 
-        for (int i = 0; i < GamePlayers.Count; i++)
+    for (int i = 0; i < GamePlayers.Count; i++)
+    {
+        if (i == hunterIndex)
         {
-            if (i == hunterIndex)
-            {
-                GamePlayers[i].Role = PlayerRole.Hunter;
-            }
-            else
-            {
-                GamePlayers[i].Role = PlayerRole.Prop;
-            }
+            GamePlayers[i].Role = PlayerRole.Hunter;
         }
+        else
+        {
+            GamePlayers[i].Role = PlayerRole.Prop;
+        }
+    }*/
     }
 }
