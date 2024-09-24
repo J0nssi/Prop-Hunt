@@ -21,9 +21,11 @@ public class PlayerObjectController : NetworkBehaviour
     //Props
     public GameObject[] PropModels;
     private GameObject currentProp;
+    private GameObject currentPropPrefab;
+
+    //Hunter
     public GameObject HunterPrefab;
     private GameObject currentHunter;
-    private GameObject currentPropPrefab;
 
     private bool isPropFrozen = false;
     private Vector3 frozenPosition; // Store the frozen position
@@ -87,6 +89,7 @@ public class PlayerObjectController : NetworkBehaviour
         DontDestroyOnLoad(this.gameObject);
         currentProp = null;
         currentHunter = null;
+        
     }
 
     private void PlayerReadyUpdate(bool oldValue, bool newValue)
@@ -214,6 +217,7 @@ public class PlayerObjectController : NetworkBehaviour
         // Color should already be handled by OnColorChanged
     }
 
+
     private void AssignProps()
     {
         if (isServer)
@@ -234,7 +238,7 @@ public class PlayerObjectController : NetworkBehaviour
 
             // Step 3: Instantiate the chosen prop model on the server
             GameObject propInstance = Instantiate(chosenProp, transform.position, Quaternion.identity);
-
+            Debug.Log($"Prop Position: {propInstance.transform.position}");
             // Attach the prop to the player by making it a child of the player
             AttachAndPositionProp(propInstance);
 
@@ -276,7 +280,7 @@ public class PlayerObjectController : NetworkBehaviour
         {
             propInstance.transform.localPosition = followTarget.localPosition; // Position relative to the follow target
         }
-        propInstance.transform.localRotation = Quaternion.identity;
+        propInstance.transform.localRotation = Quaternion.Euler(-90, 0, -90);
 
 
         // Optional: Ensure the prop has no impact on physics if necessary
@@ -304,12 +308,9 @@ public class PlayerObjectController : NetworkBehaviour
             // Instantiate the Hunter prefab
             chosenHunter = HunterPrefab;
             GameObject hunterInstance = Instantiate(chosenHunter, transform.position, Quaternion.identity);
-            Debug.Log($"HunterPrefab instantiated at {transform.position}");
 
             // Spawn the Hunter prefab on the network
             NetworkServer.Spawn(hunterInstance, connectionToClient);
-            Debug.Log($"HunterPrefab spawned with authority to {connectionToClient}");
-            Debug.Log($"Connection to client: {(connectionToClient != null ? "Valid" : "Null")}");
 
             // Update references
             currentHunter = hunterInstance; // Rename to currentHunter
@@ -317,7 +318,6 @@ public class PlayerObjectController : NetworkBehaviour
 
             // Notify clients about the new Hunter object
             RpcAssignHunterOnClient(hunterInstance);
-            Debug.Log("Hunter assignment complete.");
         }
     }
 

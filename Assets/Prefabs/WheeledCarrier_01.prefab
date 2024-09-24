@@ -12,6 +12,14 @@ PrefabInstance:
       propertyPath: m_Name
       value: WheeledCarrier_01
       objectReference: {fileID: 0}
+    - target: {fileID: 100000, guid: feb5da2b507b3724f8c0c6e6a346f8c8, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 100000, guid: feb5da2b507b3724f8c0c6e6a346f8c8, type: 3}
+      propertyPath: m_TagString
+      value: Prop
+      objectReference: {fileID: 0}
     - target: {fileID: 400000, guid: feb5da2b507b3724f8c0c6e6a346f8c8, type: 3}
       propertyPath: m_LocalPosition.x
       value: -0
@@ -26,11 +34,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 400000, guid: feb5da2b507b3724f8c0c6e6a346f8c8, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 0.7071068
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 400000, guid: feb5da2b507b3724f8c0c6e6a346f8c8, type: 3}
       propertyPath: m_LocalRotation.x
-      value: -0.7071068
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 400000, guid: feb5da2b507b3724f8c0c6e6a346f8c8, type: 3}
       propertyPath: m_LocalRotation.y
@@ -38,7 +46,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 400000, guid: feb5da2b507b3724f8c0c6e6a346f8c8, type: 3}
       propertyPath: m_LocalRotation.z
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 400000, guid: feb5da2b507b3724f8c0c6e6a346f8c8, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -62,6 +70,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 100000, guid: feb5da2b507b3724f8c0c6e6a346f8c8, type: 3}
       insertIndex: -1
       addedObject: {fileID: -898527089235532889}
+    - targetCorrespondingSourceObject: {fileID: 100000, guid: feb5da2b507b3724f8c0c6e6a346f8c8, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 6398375322602774211}
   m_SourcePrefab: {fileID: 100100000, guid: feb5da2b507b3724f8c0c6e6a346f8c8, type: 3}
 --- !u!4 &5538676951589359664 stripped
 Transform:
@@ -124,3 +135,25 @@ MonoBehaviour:
   rotationSensitivity: 0.01
   positionPrecision: 0.01
   scalePrecision: 0.01
+--- !u!64 &6398375322602774211
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5538676951589784592}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 1
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 4300000, guid: feb5da2b507b3724f8c0c6e6a346f8c8, type: 3}
