@@ -134,12 +134,6 @@ public class PlayerMovemenController : NetworkBehaviour
         if (Physics.Raycast(ray, out hit, Mathf.Infinity, layerMask))
         {
             Debug.Log("Hit a prop: " + hit.collider.name);
-            PropController prop = hit.collider.GetComponent<PropController>();
-            if (prop != null)
-            {
-                prop.RpcTakeDamage(10f); // Deal damage to the specific prop
-                Debug.Log("Hit a prop: " + hit.collider.name);
-            }
         }
         else
         {

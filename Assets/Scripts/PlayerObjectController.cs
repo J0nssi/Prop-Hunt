@@ -38,35 +38,60 @@ public class PlayerObjectController : NetworkBehaviour
         Prop
     }
 
-    [SyncVar(hook = nameof(OnRoleChanged))]
+    [SyncVar]
     public PlayerRole Role;
 
-    private void OnRoleChanged(PlayerRole oldRole, PlayerRole newRole)
-    {
-        Debug.Log($"Role changed from {oldRole} to {newRole}");
-        if (newRole == PlayerRole.Prop)
-        {
-            AssignProps();  // Only if the player is a Prop
-            ThirdPersonCamera.SetActive(true);
-            EmptyCamera.SetActive(true);
-            FirstPersonCamera.SetActive(false);
-        }
-        else if (newRole == PlayerRole.Hunter)
-        {
-            AssignHunter();
-            ThirdPersonCamera.SetActive(false);
-            EmptyCamera.SetActive(false);
-            FirstPersonCamera.SetActive(true);
-        }
-    }
 
 
 
     [Command]
     public void CmdSetRole(PlayerRole newRole)
     {
+        Debug.Log($"CmdSetRole: Setting role to {newRole} for {gameObject.name}");
+
+        // Server sets the role
+        if (isServer)
+        {
+            Role = newRole;
+            Debug.Log($"Server assigned role {newRole} to {gameObject.name}");
+
+            // Notify all clients about the role change
+            RpcUpdateRole(Role);
+        }
+    }
+
+    [ClientRpc]
+    void RpcUpdateRole(PlayerRole newRole)
+    {
+        Debug.Log($"RpcUpdateRole: Updating role to {newRole} on client for {gameObject.name}");
         Role = newRole;
-        OnRoleChanged(Role, newRole);
+
+        // Handle any client-side changes after the role update
+        if (isLocalPlayer)
+        {
+            Debug.Log($"RpcUpdateRole: Role updated for local player {gameObject.name}, new role: {newRole}");
+            HandleRoleChange(newRole);
+        }
+    }
+
+    private void HandleRoleChange(PlayerRole newRole)
+    {
+        if (!isLocalPlayer) return;  // Only handle camera switching for the local player
+
+        Debug.Log($"Switching cameras for {gameObject.name} based on role: {newRole}");
+
+        if (newRole == PlayerRole.Prop)
+        {
+            ThirdPersonCamera.SetActive(true);
+            EmptyCamera.SetActive(true);
+            FirstPersonCamera.SetActive(false);
+        }
+        else if (newRole == PlayerRole.Hunter)
+        {
+            ThirdPersonCamera.SetActive(false);
+            EmptyCamera.SetActive(false);
+            FirstPersonCamera.SetActive(true);
+        }
     }
 
     //Network manager
@@ -203,7 +228,7 @@ public class PlayerObjectController : NetworkBehaviour
             Role = newRole;
 
             // Call OnRoleChanged to handle the transition
-            OnRoleChanged(oldRole, newRole);
+            RpcUpdateRole(newRole);
         }
         else
         {
@@ -281,21 +306,13 @@ public class PlayerObjectController : NetworkBehaviour
             propInstance.transform.localPosition = followTarget.localPosition; // Position relative to the follow target
         }
         propInstance.transform.localRotation = Quaternion.Euler(-90, 0, -90);
-
-
-        // Optional: Ensure the prop has no impact on physics if necessary
-        Rigidbody rb = propInstance.GetComponent<Rigidbody>();
-        if (rb != null)
-        {
-            rb.isKinematic = true; // Prevent physics from affecting movement
-        }
     }
 
     private void AssignHunter()
     {
         if (isServer)
         {
-            GameObject chosenHunter = null;
+            GameObject chosenHunter = HunterPrefab;
             Debug.Log("Assigning Hunter...");
 
             // Destroy current prop if it exists
@@ -306,7 +323,6 @@ public class PlayerObjectController : NetworkBehaviour
             }
 
             // Instantiate the Hunter prefab
-            chosenHunter = HunterPrefab;
             GameObject hunterInstance = Instantiate(chosenHunter, transform.position, Quaternion.identity);
 
             // Spawn the Hunter prefab on the network
@@ -314,7 +330,6 @@ public class PlayerObjectController : NetworkBehaviour
 
             // Update references
             currentHunter = hunterInstance; // Rename to currentHunter
-            HunterPrefab = chosenHunter; // Rename for clarity
 
             // Notify clients about the new Hunter object
             RpcAssignHunterOnClient(hunterInstance);
@@ -334,7 +349,6 @@ public class PlayerObjectController : NetworkBehaviour
             hunterInstance.transform.rotation = transform.rotation;
 
             currentHunter = hunterInstance;
-            currentPropPrefab = hunterInstance;
 
             Debug.Log("Client has updated the Hunter instance.");
         }
@@ -352,13 +366,6 @@ public class PlayerObjectController : NetworkBehaviour
             hunterInstance.transform.localPosition = followTarget.localPosition; // Position relative to the follow target
         }
         hunterInstance.transform.localRotation = Quaternion.identity;
-
-        // Optional: Handle physics to prevent movement issues
-        Rigidbody rb = hunterInstance.GetComponent<Rigidbody>();
-        if (rb != null)
-        {
-            rb.isKinematic = true; // Prevent physics interactions for the hunter object
-        }
     }
 
     [Command]
