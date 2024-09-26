@@ -27,9 +27,6 @@ public class PlayerObjectController : NetworkBehaviour
     public GameObject HunterPrefab;
     private GameObject currentHunter;
 
-    private bool isPropFrozen = false;
-    private Vector3 frozenPosition; // Store the frozen position
-    private Quaternion frozenRotation;
 
     //Roles
     public enum PlayerRole
@@ -148,7 +145,8 @@ public class PlayerObjectController : NetworkBehaviour
         CmdSetPlayerName(SteamFriends.GetPersonaName());
         gameObject.name = "LocalGamePlayer";
         LobbyController.Instance.FindLocalPlayer();
-        LobbyController.Instance.UpdateLobbyName();
+        LobbyController.Instance.UpdateLobbyName();      
+
     }
 
     public override void OnStartClient()
@@ -210,10 +208,6 @@ public class PlayerObjectController : NetworkBehaviour
                 {
                     CmdChangeProp();  // Request the server to change the prop
                 }
-                if (Input.GetKeyDown(KeyCode.R))
-                {
-                    CmdToggleFreezeProp();    // Request the server to freeze the prop
-                }
 
             }
         }
@@ -262,7 +256,7 @@ public class PlayerObjectController : NetworkBehaviour
             } while (currentProp != null && chosenProp == currentPropPrefab);
 
             // Step 3: Instantiate the chosen prop model on the server
-            GameObject propInstance = Instantiate(chosenProp, transform.position, Quaternion.identity);
+            GameObject propInstance = Instantiate(chosenProp, transform.position, Quaternion.Euler(-90, 0, 90));
             Debug.Log($"Prop Position: {propInstance.transform.position}");
             // Attach the prop to the player by making it a child of the player
             AttachAndPositionProp(propInstance);
@@ -289,7 +283,7 @@ public class PlayerObjectController : NetworkBehaviour
         {
             AttachAndPositionProp(propInstance);
             propInstance.transform.position = transform.position;
-            propInstance.transform.rotation = transform.rotation;
+            propInstance.transform.rotation = Quaternion.Euler(-90, 0, 90);
             currentProp = propInstance;
             currentPropPrefab = propInstance;
         }
@@ -384,39 +378,5 @@ public class PlayerObjectController : NetworkBehaviour
     private void ChangeProp()
     {
         AssignProps();
-    }
-
-    [Command]
-    private void CmdToggleFreezeProp()
-    {
-        isPropFrozen = !isPropFrozen; // Toggle the frozen state
-        RpcToggleFreezeProp(isPropFrozen);
-    }
-
-    [ClientRpc]
-    private void RpcToggleFreezeProp(bool frozen)
-    {
-        if (frozen)
-        {
-            frozenPosition = transform.position; // Store the current position
-            frozenRotation = transform.rotation; // Store the current rotation
-        }
-        else
-        {
-            // Optionally handle any logic for when the prop is unfrozen
-        }
-
-        // Update the frozen state
-        isPropFrozen = frozen;
-    }
-
-    private void FixedUpdate()
-    {
-        if (Role == PlayerRole.Prop && isPropFrozen)
-        {
-            // Reset the position and rotation to the frozen state
-            transform.position = frozenPosition;
-            transform.rotation = frozenRotation;
-        }
     }
 }

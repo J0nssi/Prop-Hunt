@@ -35,6 +35,10 @@ public class PlayerMovemenController : NetworkBehaviour
     [HideInInspector]
     public bool canMove = true;
 
+    public bool isPropFrozen = false;
+    private Vector3 frozenPosition;
+    private Quaternion frozenRotation;
+
     private void Start()
     {
         PlayerModel.SetActive(false);
@@ -61,6 +65,11 @@ public class PlayerMovemenController : NetworkBehaviour
                 {
                     Shoot();
                 }
+                if (Input.GetKeyDown(KeyCode.R) && playerObjectController.Role == PlayerObjectController.PlayerRole.Prop)
+                {
+                    Debug.Log("R key pressed, attempting to toggle freeze");
+                    ToggleFreeze();
+                }
             }
             
 
@@ -83,6 +92,17 @@ public class PlayerMovemenController : NetworkBehaviour
 
     public void PropMovement()
     {
+
+        // Override movement logic when frozen
+        if (isPropFrozen)
+        {
+            characterController.enabled = false;  // Disable character controller to stop any unintended movement
+            transform.position = frozenPosition;
+            transform.rotation = frozenRotation;
+            return;
+        }
+
+        characterController.enabled = true;
         float horizontal = Input.GetAxisRaw("Horizontal");
         float vertical = Input.GetAxisRaw("Vertical");
 
@@ -105,13 +125,29 @@ public class PlayerMovemenController : NetworkBehaviour
         if (direction.magnitude >= 0.1f)
         {
             float targetAngle = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg + TPScam.eulerAngles.y;
-            float angle = Mathf.SmoothDamp(transform.eulerAngles.y, targetAngle, ref turnSmoothVelocity, turnSmoothTime);
+            float angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetAngle, ref turnSmoothVelocity, turnSmoothTime);
             transform.rotation = Quaternion.Euler(0f, angle, 0f);
 
             Vector3 moveDir = Quaternion.Euler(0f, targetAngle, 0f) * Vector3.forward;
             characterController.Move(moveDir.normalized * propSpeed * Time.deltaTime);
         }
         characterController.Move(new Vector3(0, moveDirection.y, 0) * Time.deltaTime);
+    }
+
+    private void ToggleFreeze()
+    {
+        isPropFrozen = !isPropFrozen;
+
+        if (isPropFrozen)
+        {
+            // Freeze position and rotation
+            frozenPosition = transform.position;
+            frozenRotation = transform.rotation;
+        }
+        else
+        {
+            // Unfreeze: Movement resumes normally
+        }
     }
 
     private void DestroyProp()

@@ -44,7 +44,7 @@ public class CustomNetworkManager : NetworkManager
        {
          if (i == hunterIndex)
          {
-            GamePlayers[i].AssignRole(PlayerObjectController.PlayerRole.Hunter);
+            GamePlayers[i].AssignRole(PlayerObjectController.PlayerRole.Prop);
          }
          else
          {
