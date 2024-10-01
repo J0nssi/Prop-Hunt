@@ -44,13 +44,14 @@ public class PlayerListItem : MonoBehaviour
     {
         PlayerNameText.text = PlayerName;
         ChangeReadyStatus();
-        if (AvatarRecieved) { GetPlayerIcon(); }
+        if (!AvatarRecieved) { GetPlayerIcon(); }
     }
 
     void GetPlayerIcon()
     {
         int ImageID = SteamFriends.GetLargeFriendAvatar((CSteamID)PlayerSteamID);
-        if(ImageID == -1) { return; }
+        Debug.Log($"Steam avatar ImageID: {ImageID}");
+        if (ImageID == -1) { Debug.LogError("Steam avatar not available yet. Waiting for image download."); return; }
         PlayerIcon.texture = GetSteamImageAsTexture(ImageID);
     }
 

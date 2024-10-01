@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Mirror;
 using Steamworks;
+using UnityEngine.SceneManagement;
 
 public class PlayerObjectController : NetworkBehaviour
 {
@@ -53,21 +54,27 @@ public class PlayerObjectController : NetworkBehaviour
             Debug.Log($"Server assigned role {newRole} to {gameObject.name}");
 
             // Notify all clients about the role change
-            RpcUpdateRole(Role);
+            RpcUpdateRole(newRole);
         }
     }
 
     [ClientRpc]
     void RpcUpdateRole(PlayerRole newRole)
     {
-        Debug.Log($"RpcUpdateRole: Updating role to {newRole} on client for {gameObject.name}");
-        Role = newRole;
-
-        // Handle any client-side changes after the role update
+        // Only instantiate or switch models on the local player if it's their role
         if (isLocalPlayer)
         {
-            Debug.Log($"RpcUpdateRole: Role updated for local player {gameObject.name}, new role: {newRole}");
-            HandleRoleChange(newRole);
+            HandleRoleChange(newRole); // Camera switching handled here
+        }
+
+        // Instantiate the appropriate model based on the role
+        if (newRole == PlayerRole.Hunter)
+        {
+            AssignHunter(); // Assign Hunter model
+        }
+        else if (newRole == PlayerRole.Prop)
+        {
+            AssignProps(); // Assign Prop model
         }
     }
 
@@ -123,6 +130,29 @@ public class PlayerObjectController : NetworkBehaviour
         if (isClient)
         {
             LobbyController.Instance.UpdatePlayerList();
+        }
+    }
+  public void Quit()
+    {
+        //Set the offline scene to null
+        manager.offlineScene = "";
+
+        //Make the active scene the offline scene
+        SceneManager.LoadScene("Menu");
+
+        //Leave Steam Lobby
+        SteamLobby.Instance.LeaveLobby();
+
+        if (isOwned)
+        {
+            if (isServer)
+            {
+                manager.StopHost();
+            }
+            else
+            {
+                manager.StopClient();
+            }
         }
     }
 
@@ -230,6 +260,7 @@ public class PlayerObjectController : NetworkBehaviour
         }
     }
 
+
     private void HandleHunterAbilities()
     {
         // Implement Hunter-specific abilities (e.g., tracking, attacking)
@@ -241,51 +272,33 @@ public class PlayerObjectController : NetworkBehaviour
     {
         if (isServer)
         {
-            
-            GameObject chosenProp = null;
-            int randomIndex;
-            Debug.Log($"Current prop: {currentProp?.name}");
+            GameObject chosenProp = PropModels[Random.Range(0, PropModels.Length)]; // Randomly select a prop
 
-            // Make sure to choose a prop that is different from the current one
-            do
-            {
-                // Randomly select a prop model
-                randomIndex = Random.Range(0, PropModels.Length);
-                chosenProp = PropModels[randomIndex];
-                Debug.Log($"Trying to choose prop: {chosenProp.name}");
-            } while (currentProp != null && chosenProp == currentPropPrefab);
-
-            // Step 3: Instantiate the chosen prop model on the server
+            // Instantiate and attach the prop to the player
             GameObject propInstance = Instantiate(chosenProp, transform.position, Quaternion.Euler(-90, 0, 90));
-            Debug.Log($"Prop Position: {propInstance.transform.position}");
-            // Attach the prop to the player by making it a child of the player
             AttachAndPositionProp(propInstance);
 
-            // Step 4: Spawn the prop on the network and inform all clients
+            // Spawn the prop on the network
             NetworkServer.Spawn(propInstance, connectionToClient);
+
             if (currentProp != null)
             {
-                Debug.Log($"Destroying current prop: {currentProp.name}");
-                NetworkServer.Destroy(currentProp);
+                NetworkServer.Destroy(currentProp); // Destroy the old prop
             }
 
-            currentProp = propInstance;
-            currentPropPrefab = chosenProp;
-            // Use ClientRpc to sync the prop instantiation across all clients
-            RpcAssignPropOnClient(propInstance);
+            currentProp = propInstance; // Update the reference
+            RpcAssignPropOnClient(propInstance); // Inform all clients
         }
     }
+
 
     [ClientRpc]
     private void RpcAssignPropOnClient(GameObject propInstance)
     {
         if (!isServer)
         {
-            AttachAndPositionProp(propInstance);
-            propInstance.transform.position = transform.position;
-            propInstance.transform.rotation = Quaternion.Euler(-90, 0, 90);
+            AttachAndPositionProp(propInstance); // Position it for clients
             currentProp = propInstance;
-            currentPropPrefab = propInstance;
         }
     }
 
@@ -306,27 +319,19 @@ public class PlayerObjectController : NetworkBehaviour
     {
         if (isServer)
         {
-            GameObject chosenHunter = HunterPrefab;
-            Debug.Log("Assigning Hunter...");
+            GameObject hunterInstance = Instantiate(HunterPrefab, transform.position, Quaternion.identity);
+            AttachAndPositionHunter(hunterInstance);
 
-            // Destroy current prop if it exists
-            if (currentHunter != null)
-            {
-                NetworkServer.Destroy(currentHunter);
-                Debug.Log($"Destroyed current Hunter: {currentHunter.name}");
-            }
-
-            // Instantiate the Hunter prefab
-            GameObject hunterInstance = Instantiate(chosenHunter, transform.position, Quaternion.identity);
-
-            // Spawn the Hunter prefab on the network
+            // Spawn the Hunter on the network
             NetworkServer.Spawn(hunterInstance, connectionToClient);
 
-            // Update references
-            currentHunter = hunterInstance; // Rename to currentHunter
+            if (currentHunter != null)
+            {
+                NetworkServer.Destroy(currentHunter); // Destroy the old hunter, if any
+            }
 
-            // Notify clients about the new Hunter object
-            RpcAssignHunterOnClient(hunterInstance);
+            currentHunter = hunterInstance; // Update the reference
+            RpcAssignHunterOnClient(hunterInstance); // Inform all clients
         }
     }
 
@@ -335,16 +340,8 @@ public class PlayerObjectController : NetworkBehaviour
     {
         if (!isServer)
         {
-            Debug.Log("Updating client with new Hunter instance.");
-            AttachAndPositionHunter(hunterInstance);
-
-            // Set position and rotation
-            hunterInstance.transform.position = transform.position;
-            hunterInstance.transform.rotation = transform.rotation;
-
+            AttachAndPositionHunter(hunterInstance); // Position it for clients
             currentHunter = hunterInstance;
-
-            Debug.Log("Client has updated the Hunter instance.");
         }
     }
 
@@ -365,18 +362,64 @@ public class PlayerObjectController : NetworkBehaviour
     [Command]
     private void CmdChangeProp()
     {
-        ChangeProp();  // Run on server
+        if (isServer)
+        {
+            // Change to a new random prop on the server
+            ChangeProp();
+        }
+        else
+        {
+            // Call RPC to update clients about the change
+            RpcChangeProp();
+        }
     }
 
     [ClientRpc]
     private void RpcChangeProp()
     {
-        Debug.Log("RpcChangeProp called.");
-        ChangeProp();  // Also run on clients
+        if (!isServer)
+        {
+            ChangeProp();  // Update the prop on all clients
+        }
     }
 
     private void ChangeProp()
     {
-        AssignProps();
+        // Ensure we pick a different prop than the current one
+        if (PropModels.Length == 0) return;
+
+        GameObject chosenProp = null;
+        int randomIndex;
+        do
+        {
+            randomIndex = Random.Range(0, PropModels.Length);
+            chosenProp = PropModels[randomIndex];
+        }
+        while (currentPropPrefab != null && chosenProp == currentPropPrefab);  // Ensure new prop is different
+
+        if (chosenProp != null)
+        {
+            if (currentProp != null)
+            {
+                // Destroy the current prop if one exists
+                NetworkServer.Destroy(currentProp);
+            }
+
+            // Instantiate the new prop
+            GameObject newProp = Instantiate(chosenProp, transform.position, Quaternion.Euler(-90, 0, 90));
+
+            // Attach the new prop to the player
+            AttachAndPositionProp(newProp);
+
+            // Spawn the new prop on the network and sync with clients
+            NetworkServer.Spawn(newProp, connectionToClient);
+
+            // Update references to the new prop
+            currentProp = newProp;
+            currentPropPrefab = chosenProp;
+
+            // Inform all clients of the new prop
+            RpcAssignPropOnClient(newProp);
+        }
     }
 }

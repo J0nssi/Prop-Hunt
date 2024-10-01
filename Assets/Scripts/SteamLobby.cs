@@ -107,5 +107,14 @@ public class SteamLobby : MonoBehaviour
         LobbiesListManager.instance.DisplayLobbies(lobbyIDs, result);
     }
 
+    public void LeaveLobby()
+    {
+        if (SteamManager.Initialized)
+        {
+            SteamMatchmaking.LeaveLobby(new CSteamID(CurrentLobbyID));
+            Debug.Log("Left Steam lobby.");
+        }
+    }
+
 
 }
