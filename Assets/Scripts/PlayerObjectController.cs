@@ -23,10 +23,17 @@ public class PlayerObjectController : NetworkBehaviour
     public GameObject[] PropModels;
     private GameObject currentProp;
     private GameObject currentPropPrefab;
+    private float timer = 0f; // Timer to track elapsed time
+    private bool hasChangedPropOnce = false; // Flag to ensure the prop changes once after 5 seconds
+    private int manualChangeCount = 0; // Counter for manual changes
+    private const int maxManualChanges = 3; // Maximum number of manual changes allowed
 
     //Hunter
     public GameObject HunterPrefab;
     private GameObject currentHunter;
+
+    //UI
+    private const float totalTime = 5f; // Total time for assigning props
 
 
     //Roles
@@ -71,6 +78,7 @@ public class PlayerObjectController : NetworkBehaviour
         if (newRole == PlayerRole.Hunter)
         {
             AssignHunter(); // Assign Hunter model
+            
         }
         else if (newRole == PlayerRole.Prop)
         {
@@ -118,7 +126,6 @@ public class PlayerObjectController : NetworkBehaviour
         DontDestroyOnLoad(this.gameObject);
         currentProp = null;
         currentHunter = null;
-        
     }
 
     private void PlayerReadyUpdate(bool oldValue, bool newValue)
@@ -234,11 +241,23 @@ public class PlayerObjectController : NetworkBehaviour
             }
             else if (Role == PlayerRole.Prop)
             {
-                if (Input.GetKeyDown(KeyCode.F))
+                // Increment the timer
+                timer += Time.deltaTime;
+
+                // Automatically change prop after 5 seconds, but only once
+                if (!hasChangedPropOnce && timer >= 5f)
                 {
-                    CmdChangeProp();  // Request the server to change the prop
+                    CmdChangeProp(); // Change prop automatically
+                    hasChangedPropOnce = true; // Prevent further automatic changes
+                    Debug.Log($"{gameObject.name} has automatically changed the prop after 5 seconds.");
                 }
 
+                // Manual change condition
+                if (Input.GetKeyDown(KeyCode.F) && manualChangeCount < maxManualChanges && timer >= 5f)
+                {
+                    CmdChangeProp();  // Request the server to change the prop
+                    manualChangeCount++; // Increment the manual change count
+                }
             }
         }
     }
@@ -275,7 +294,7 @@ public class PlayerObjectController : NetworkBehaviour
             GameObject chosenProp = PropModels[Random.Range(0, PropModels.Length)]; // Randomly select a prop
 
             // Instantiate and attach the prop to the player
-            GameObject propInstance = Instantiate(chosenProp, transform.position, Quaternion.Euler(-90, 0, 90));
+            GameObject propInstance = Instantiate(chosenProp, transform.position, Quaternion.identity);
             AttachAndPositionProp(propInstance);
 
             // Spawn the prop on the network
@@ -307,13 +326,25 @@ public class PlayerObjectController : NetworkBehaviour
         // Attach the prop as a child of the player
         propInstance.transform.SetParent(transform);
 
+        // Adjust the position and rotation
+        // Assuming you want the prop to be at the center of the player or just in front of the camera.
         Transform followTarget = transform.Find("CameraHolder/FollowTarget");
+
         if (followTarget != null)
         {
-            propInstance.transform.localPosition = followTarget.localPosition; // Position relative to the follow target
+            // Position relative to the follow target
+            // Adjust the local position to fit your needs
+            propInstance.transform.localPosition = new Vector3(0, 0, 0); // Set to desired position
+            propInstance.transform.localRotation = Quaternion.Euler(-90, 0, 90); // Keep default rotation or set to desired
         }
-        propInstance.transform.localRotation = Quaternion.Euler(-90, 0, -90);
+        else
+        {
+            // If there's no follow target, position it directly at the player's center
+            propInstance.transform.localPosition = Vector3.zero; // Center of the player
+            propInstance.transform.localRotation = Quaternion.Euler(-90, 0, -90); // Default rotation
+        }
     }
+
 
     private void AssignHunter()
     {
@@ -406,7 +437,7 @@ public class PlayerObjectController : NetworkBehaviour
             }
 
             // Instantiate the new prop
-            GameObject newProp = Instantiate(chosenProp, transform.position, Quaternion.Euler(-90, 0, 90));
+            GameObject newProp = Instantiate(chosenProp, transform.position, Quaternion.identity);
 
             // Attach the new prop to the player
             AttachAndPositionProp(newProp);
