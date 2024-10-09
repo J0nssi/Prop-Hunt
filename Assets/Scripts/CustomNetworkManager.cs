@@ -4,7 +4,6 @@ using UnityEngine;
 using Mirror;
 using UnityEngine.SceneManagement;
 using Steamworks;
-using static PlayerObjectController;
 
 public class CustomNetworkManager : NetworkManager
 {

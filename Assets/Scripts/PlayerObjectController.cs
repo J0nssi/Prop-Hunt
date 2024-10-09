@@ -19,21 +19,8 @@ public class PlayerObjectController : NetworkBehaviour
     public GameObject FirstPersonCamera;
     public GameObject EmptyCamera;
 
-    //Props
-    public GameObject[] PropModels;
-    private GameObject currentProp;
-    private GameObject currentPropPrefab;
-    private float timer = 0f; // Timer to track elapsed time
-    private bool hasChangedPropOnce = false; // Flag to ensure the prop changes once after 5 seconds
-    private int manualChangeCount = 0; // Counter for manual changes
-    private const int maxManualChanges = 3; // Maximum number of manual changes allowed
-
-    //Hunter
-    public GameObject HunterPrefab;
-    private GameObject currentHunter;
-
-    //UI
-    private const float totalTime = 5f; // Total time for assigning props
+    public GameObject[] propPrefabs; // Array to hold multiple prop model prefabs
+    private GameObject propInstance; // To hold the instantiated prop model
 
 
     //Roles
@@ -43,11 +30,21 @@ public class PlayerObjectController : NetworkBehaviour
         Prop
     }
 
-    [SyncVar]
+    [SyncVar(hook = nameof(OnRoleChanged))]
     public PlayerRole Role;
 
 
+    private void OnRoleChanged(PlayerRole oldRole, PlayerRole newRole)
+    {
+        Debug.Log($"Role changed from {oldRole} to {newRole}");
+        // Only instantiate or switch models on the local player if it's their role
+        if (isLocalPlayer)
+        {
+            HandleRoleChange(newRole); // Camera switching handled here
+        }
 
+        RpcUpdateRole(newRole);
+    }
 
     [Command]
     public void CmdSetRole(PlayerRole newRole)
@@ -73,17 +70,6 @@ public class PlayerObjectController : NetworkBehaviour
         {
             HandleRoleChange(newRole); // Camera switching handled here
         }
-
-        // Instantiate the appropriate model based on the role
-        if (newRole == PlayerRole.Hunter)
-        {
-            AssignHunter(); // Assign Hunter model
-            
-        }
-        else if (newRole == PlayerRole.Prop)
-        {
-            AssignProps(); // Assign Prop model
-        }
     }
 
     private void HandleRoleChange(PlayerRole newRole)
@@ -97,14 +83,37 @@ public class PlayerObjectController : NetworkBehaviour
             ThirdPersonCamera.SetActive(true);
             EmptyCamera.SetActive(true);
             FirstPersonCamera.SetActive(false);
+
+            // Destroy the previous prop model if it exists
+            if (propInstance != null)
+            {
+                NetworkServer.Destroy(propInstance);  // Properly destroy networked instance
+            }
+
+            // Randomly select a prop from the array of prop prefabs
+            int randomIndex = Random.Range(0, propPrefabs.Length);
+
+            // Instantiate the selected prop on the server
+            propInstance = Instantiate(propPrefabs[randomIndex], transform.position, Quaternion.Euler(-90, 0, -90), transform);
+
+            // Spawn the prop for all clients
+            NetworkServer.Spawn(propInstance);
+            Debug.Log($"Instantiated and spawned Prop model: {propPrefabs[randomIndex].name}");
         }
         else if (newRole == PlayerRole.Hunter)
         {
             ThirdPersonCamera.SetActive(false);
             EmptyCamera.SetActive(false);
             FirstPersonCamera.SetActive(true);
+
+            if (propInstance != null)
+            {
+                NetworkServer.Destroy(propInstance);
+                Debug.Log("Destroyed Prop model.");
+            }
         }
     }
+
 
     //Network manager
     private CustomNetworkManager manager;
@@ -124,8 +133,6 @@ public class PlayerObjectController : NetworkBehaviour
     private void Start()
     {
         DontDestroyOnLoad(this.gameObject);
-        currentProp = null;
-        currentHunter = null;
     }
 
     private void PlayerReadyUpdate(bool oldValue, bool newValue)
@@ -137,29 +144,6 @@ public class PlayerObjectController : NetworkBehaviour
         if (isClient)
         {
             LobbyController.Instance.UpdatePlayerList();
-        }
-    }
-  public void Quit()
-    {
-        //Set the offline scene to null
-        manager.offlineScene = "";
-
-        //Make the active scene the offline scene
-        SceneManager.LoadScene("Menu");
-
-        //Leave Steam Lobby
-        SteamLobby.Instance.LeaveLobby();
-
-        if (isOwned)
-        {
-            if (isServer)
-            {
-                manager.StopHost();
-            }
-            else
-            {
-                manager.StopClient();
-            }
         }
     }
 
@@ -233,33 +217,7 @@ public class PlayerObjectController : NetworkBehaviour
 
     private void Update()
     {
-        if (isLocalPlayer)
-        {
-            if (Role == PlayerRole.Hunter)
-            {
-                HandleHunterAbilities();
-            }
-            else if (Role == PlayerRole.Prop)
-            {
-                // Increment the timer
-                timer += Time.deltaTime;
-
-                // Automatically change prop after 5 seconds, but only once
-                if (!hasChangedPropOnce && timer >= 5f)
-                {
-                    CmdChangeProp(); // Change prop automatically
-                    hasChangedPropOnce = true; // Prevent further automatic changes
-                    Debug.Log($"{gameObject.name} has automatically changed the prop after 5 seconds.");
-                }
-
-                // Manual change condition
-                if (Input.GetKeyDown(KeyCode.F) && manualChangeCount < maxManualChanges && timer >= 5f)
-                {
-                    CmdChangeProp();  // Request the server to change the prop
-                    manualChangeCount++; // Increment the manual change count
-                }
-            }
-        }
+    
     }
 
     public void AssignRole(PlayerRole newRole)
@@ -276,181 +234,6 @@ public class PlayerObjectController : NetworkBehaviour
         else
         {
             CmdSetRole(newRole);
-        }
-    }
-
-
-    private void HandleHunterAbilities()
-    {
-        // Implement Hunter-specific abilities (e.g., tracking, attacking)
-        // Color should already be handled by OnColorChanged
-    }
-
-
-    private void AssignProps()
-    {
-        if (isServer)
-        {
-            GameObject chosenProp = PropModels[Random.Range(0, PropModels.Length)]; // Randomly select a prop
-
-            // Instantiate and attach the prop to the player
-            GameObject propInstance = Instantiate(chosenProp, transform.position, Quaternion.identity);
-            AttachAndPositionProp(propInstance);
-
-            // Spawn the prop on the network
-            NetworkServer.Spawn(propInstance, connectionToClient);
-
-            if (currentProp != null)
-            {
-                NetworkServer.Destroy(currentProp); // Destroy the old prop
-            }
-
-            currentProp = propInstance; // Update the reference
-            RpcAssignPropOnClient(propInstance); // Inform all clients
-        }
-    }
-
-
-    [ClientRpc]
-    private void RpcAssignPropOnClient(GameObject propInstance)
-    {
-        if (!isServer)
-        {
-            AttachAndPositionProp(propInstance); // Position it for clients
-            currentProp = propInstance;
-        }
-    }
-
-    private void AttachAndPositionProp(GameObject propInstance)
-    {
-        // Attach the prop as a child of the player
-        propInstance.transform.SetParent(transform);
-
-        // Adjust the position and rotation
-        // Assuming you want the prop to be at the center of the player or just in front of the camera.
-        Transform followTarget = transform.Find("CameraHolder/FollowTarget");
-
-        if (followTarget != null)
-        {
-            // Position relative to the follow target
-            // Adjust the local position to fit your needs
-            propInstance.transform.localPosition = new Vector3(0, 0, 0); // Set to desired position
-            propInstance.transform.localRotation = Quaternion.Euler(-90, 0, 90); // Keep default rotation or set to desired
-        }
-        else
-        {
-            // If there's no follow target, position it directly at the player's center
-            propInstance.transform.localPosition = Vector3.zero; // Center of the player
-            propInstance.transform.localRotation = Quaternion.Euler(-90, 0, -90); // Default rotation
-        }
-    }
-
-
-    private void AssignHunter()
-    {
-        if (isServer)
-        {
-            GameObject hunterInstance = Instantiate(HunterPrefab, transform.position, Quaternion.identity);
-            AttachAndPositionHunter(hunterInstance);
-
-            // Spawn the Hunter on the network
-            NetworkServer.Spawn(hunterInstance, connectionToClient);
-
-            if (currentHunter != null)
-            {
-                NetworkServer.Destroy(currentHunter); // Destroy the old hunter, if any
-            }
-
-            currentHunter = hunterInstance; // Update the reference
-            RpcAssignHunterOnClient(hunterInstance); // Inform all clients
-        }
-    }
-
-    [ClientRpc]
-    private void RpcAssignHunterOnClient(GameObject hunterInstance)
-    {
-        if (!isServer)
-        {
-            AttachAndPositionHunter(hunterInstance); // Position it for clients
-            currentHunter = hunterInstance;
-        }
-    }
-
-
-    private void AttachAndPositionHunter(GameObject hunterInstance)
-    {
-        // Attach the Hunter prefab as a child of the player
-        hunterInstance.transform.SetParent(transform);
-
-        Transform followTarget = transform.Find("CameraHolder/FollowTarget");
-        if (followTarget != null)
-        {
-            hunterInstance.transform.localPosition = followTarget.localPosition; // Position relative to the follow target
-        }
-        hunterInstance.transform.localRotation = Quaternion.identity;
-    }
-
-    [Command]
-    private void CmdChangeProp()
-    {
-        if (isServer)
-        {
-            // Change to a new random prop on the server
-            ChangeProp();
-        }
-        else
-        {
-            // Call RPC to update clients about the change
-            RpcChangeProp();
-        }
-    }
-
-    [ClientRpc]
-    private void RpcChangeProp()
-    {
-        if (!isServer)
-        {
-            ChangeProp();  // Update the prop on all clients
-        }
-    }
-
-    private void ChangeProp()
-    {
-        // Ensure we pick a different prop than the current one
-        if (PropModels.Length == 0) return;
-
-        GameObject chosenProp = null;
-        int randomIndex;
-        do
-        {
-            randomIndex = Random.Range(0, PropModels.Length);
-            chosenProp = PropModels[randomIndex];
-        }
-        while (currentPropPrefab != null && chosenProp == currentPropPrefab);  // Ensure new prop is different
-
-        if (chosenProp != null)
-        {
-            if (currentProp != null)
-            {
-                // Destroy the current prop if one exists
-                NetworkServer.Destroy(currentProp);
-            }
-
-            // Instantiate the new prop
-            GameObject newProp = Instantiate(chosenProp, transform.position, Quaternion.identity);
-
-            // Attach the new prop to the player
-            AttachAndPositionProp(newProp);
-
-            // Spawn the new prop on the network and sync with clients
-            NetworkServer.Spawn(newProp, connectionToClient);
-
-            // Update references to the new prop
-            currentProp = newProp;
-            currentPropPrefab = chosenProp;
-
-            // Inform all clients of the new prop
-            RpcAssignPropOnClient(newProp);
         }
     }
 }

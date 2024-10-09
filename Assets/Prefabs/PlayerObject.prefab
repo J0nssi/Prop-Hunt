@@ -59,6 +59,7 @@ GameObject:
   - component: {fileID: 4698854077617419826}
   - component: {fileID: 5217674341207498027}
   - component: {fileID: 2137708347127503958}
+  - component: {fileID: 4479926146004212324}
   m_Layer: 0
   m_Name: PlayerObject
   m_TagString: Player
@@ -75,7 +76,7 @@ Transform:
   m_GameObject: {fileID: 717554884677584476}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 746.0799, y: 259.09088, z: 3.7327778}
+  m_LocalPosition: {x: 5, y: 10, z: 5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -123,13 +124,9 @@ MonoBehaviour:
   ThirdPersonCamera: {fileID: 885258937936056870}
   FirstPersonCamera: {fileID: 4948719299259173548}
   EmptyCamera: {fileID: 8078919567903689139}
-  PropModels:
+  propPrefabs:
   - {fileID: 5538676951589784592, guid: 2bfc063dd5730cd40beead465798d44c, type: 3}
-  - {fileID: 1116991846400805783, guid: c3e91a624a23ba047b424fa709c01ba0, type: 3}
-  - {fileID: 2811329368780374930, guid: 3a19c5d0ecf13de4f80e2d06746d57d3, type: 3}
-  - {fileID: 5236740715333017960, guid: b9dc87d38a9d24e4ebb29f1fb25d1714, type: 3}
-  HunterPrefab: {fileID: 6833574208205596082, guid: 806e9d86f27d6414e8c42309a1466b1f, type: 3}
-  Role: 0
+  Role: 1
 --- !u!114 &6274931400783956752
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -145,20 +142,25 @@ MonoBehaviour:
   syncDirection: 0
   syncMode: 0
   syncInterval: 0
-  propSpeed: 6.5
-  turnSmoothTime: 0.1
+  rb: {fileID: 4479926146004212324}
   PlayerModel: {fileID: 6680511654997975338}
   TPScam: {fileID: 0}
   FPScam: {fileID: 0}
-  lookSpeed: 1
-  lookXLimit: 60
+  propSpeed: 6.5
+  turnSmoothTime: 0.1
   walkingSpeed: 7.5
   runningSpeed: 11.5
-  jumpSpeed: 8
-  gravity: 20
-  propHitpoints: 50
+  jumpForce: 8
+  gravityMultiplier: 2
+  lookSpeed: 1
+  lookXLimit: 60
   canMove: 1
   isPropFrozen: 0
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 8
+  groundCheck: {fileID: 4453822332461595714}
+  groundCheckDistance: 0.5
 --- !u!114 &4698854077617419826
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -226,15 +228,42 @@ CharacterController:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
-  m_Height: 1
+  m_Height: 1.7
   m_Radius: 0.2
   m_SlopeLimit: 45
   m_StepOffset: 0.01
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!54 &4479926146004212324
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 717554884677584476}
+  serializedVersion: 4
+  m_Mass: 1
+  m_Drag: 0
+  m_AngularDrag: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 1
+  m_IsKinematic: 0
+  m_Interpolate: 1
+  m_Constraints: 112
+  m_CollisionDetection: 1
 --- !u!1 &885258937936056870
 GameObject:
   m_ObjectHideFlags: 0

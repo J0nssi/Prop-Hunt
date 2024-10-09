@@ -10,45 +10,51 @@ using UnityEngine.SceneManagement;
 
 public class PlayerMovemenController : NetworkBehaviour
 {
-    CharacterController characterController;
+    public Rigidbody rb;  // Rigidbody for physics-based movement
 
-    //Prop
-    public float propSpeed = 6.5f;
-    public float turnSmoothTime = 0.1f;
-    float turnSmoothVelocity;
     public GameObject PlayerModel;
     public Transform TPScam;
-    private PlayerObjectController playerObjectController;
-
-    //Hunter
     public Transform FPScam;
-    public float lookSpeed = 1.0f;
-    public float lookXLimit = 60.0f;
+
+    public float propSpeed = 6.5f;
+    public float turnSmoothTime = 0.1f;
+    private float turnSmoothVelocity;
+
     public float walkingSpeed = 7.5f;
     public float runningSpeed = 11.5f;
-    public float jumpSpeed = 8.0f;
-    public float gravity = 20.0f;
-    public float propHitpoints = 50f;
-    Vector3 moveDirection = Vector3.zero;
-    float rotationX = 0;
+    public float jumpForce = 8.0f;  // Force applied when jumping
+    public float gravityMultiplier = 2.0f; // To adjust fall speed
+    public float lookSpeed = 1.0f;
+    public float lookXLimit = 60.0f;
+
+    private bool isGrounded;
+    private Vector3 moveDirection = Vector3.zero;
+    private float rotationX = 0;
 
     [HideInInspector]
     public bool canMove = true;
-
     public bool isPropFrozen = false;
+
+    private PlayerObjectController playerObjectController;
     private Vector3 frozenPosition;
     private Quaternion frozenRotation;
 
+    // LayerMask for ground detection
+    public LayerMask groundLayer;
+    public Transform groundCheck;  // Empty game object to detect ground
+    public float groundCheckDistance = 0.5f;  // Distance to detect ground
+
     private void Start()
     {
+
+        rb = GetComponent<Rigidbody>();  // Assign Rigidbody component
         PlayerModel.SetActive(false);
         playerObjectController = GetComponent<PlayerObjectController>();
-        characterController = GetComponent<CharacterController>();
         FPScam = transform.Find("CameraHolder/First Person Camera");
-        TPScam = transform.Find("CameraHolder/EmptyCam");
+        TPScam = transform.Find("CameraHolder/EmptyCam"); 
     }
 
-    private void Update()
+    private void FixedUpdate()
     {
         if(SceneManager.GetActiveScene().name == "Game")
         {
@@ -60,67 +66,72 @@ public class PlayerMovemenController : NetworkBehaviour
 
             if (isOwned)
             {
-                Movement();
-                if (Input.GetMouseButtonDown(0) && playerObjectController.Role == PlayerObjectController.PlayerRole.Hunter) // Left Mouse Button
-                {
-                    Shoot();
-                }
-                if (Input.GetKeyDown(KeyCode.R) && playerObjectController.Role == PlayerObjectController.PlayerRole.Prop)
-                {
-                    Debug.Log("R key pressed, attempting to toggle freeze");
-                    ToggleFreeze();
-                }
-            }
-            
-
+                Movement();       
+            }          
         }
     }
 
-    private void SetPosition()
+    private void Update()
     {
+        if (isGrounded && Input.GetButtonDown("Jump"))
+        {
+            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);  // Apply jump force
+        }
+        if (playerObjectController.Role == PlayerObjectController.PlayerRole.Prop)
+        {
+            if (Input.GetKeyDown(KeyCode.R))  // Example to toggle freeze state
+            {
+                ToggleFreeze();
+            }
+        }
+    }
+
+
+    [Command]
+    private void CmdSetPosition()
+    {
+        // Set a new random position on the server
         Vector3 newPosition = new Vector3(Random.Range(-5, 5), 10f, Random.Range(-15, 7));
-        Debug.Log($"Setting position to {newPosition}");
+        Debug.Log($"Server: Setting position to {newPosition}");
+
+        // Set the position on the server, which will propagate to clients
+        RpcSetPosition(newPosition);
+    }
+
+    [ClientRpc]
+    private void RpcSetPosition(Vector3 newPosition)
+    {
+        if (rb != null)
+        {
+            rb.isKinematic = true; // Temporarily disable physics
+        }
+
         transform.position = newPosition;
+
+        if (rb != null)
+        {
+            rb.isKinematic = false; // Re-enable physics after moving
+        }
     }
 
     public override void OnStartLocalPlayer()
     {
         base.OnStartLocalPlayer();
-        SetPosition();
-        PlayerModel.SetActive(true); // Ensure the player model is active
+        if (isLocalPlayer)
+        {
+            CmdSetPosition(); // Ask the server to set the position
+        }
     }
+
 
     public void PropMovement()
     {
+        CheckGrounded();  // Check if the player is grounded
 
-        // Override movement logic when frozen
-        if (isPropFrozen)
-        {
-            characterController.enabled = false;  // Disable character controller to stop any unintended movement
-            transform.position = frozenPosition;
-            transform.rotation = frozenRotation;
-            return;
-        }
-
-        characterController.enabled = true;
         float horizontal = Input.GetAxisRaw("Horizontal");
         float vertical = Input.GetAxisRaw("Vertical");
 
         Vector3 direction = new Vector3(horizontal, 0f, vertical).normalized;
-
-        if (characterController.isGrounded)
-        {
-            // Handle jumping
-            if (Input.GetButtonDown("Jump")) // Use "Jump" button from Input settings
-            {
-                moveDirection.y = jumpSpeed; // Apply jump speed
-            }
-        }
-        else
-        {
-            // Apply gravity when not grounded
-            moveDirection.y -= gravity * Time.deltaTime;
-        }
 
         if (direction.magnitude >= 0.1f)
         {
@@ -129,10 +140,17 @@ public class PlayerMovemenController : NetworkBehaviour
             transform.rotation = Quaternion.Euler(0f, angle, 0f);
 
             Vector3 moveDir = Quaternion.Euler(0f, targetAngle, 0f) * Vector3.forward;
-            characterController.Move(moveDir.normalized * propSpeed * Time.deltaTime);
+            rb.MovePosition(rb.position + moveDir.normalized * propSpeed * Time.fixedDeltaTime);  // Move prop
         }
-        characterController.Move(new Vector3(0, moveDirection.y, 0) * Time.deltaTime);
+
     }
+
+    private void CheckGrounded()
+    {
+        // Raycast or SphereCast to check if the player is on the ground
+        isGrounded = Physics.CheckSphere(groundCheck.position, groundCheckDistance, groundLayer, QueryTriggerInteraction.Ignore);
+    }
+
 
     private void ToggleFreeze()
     {
@@ -143,77 +161,41 @@ public class PlayerMovemenController : NetworkBehaviour
             // Freeze position and rotation
             frozenPosition = transform.position;
             frozenRotation = transform.rotation;
+            rb.isKinematic = true;  // Freeze physics
         }
         else
         {
             // Unfreeze: Movement resumes normally
-        }
-    }
-
-    private void DestroyProp()
-    {
-        // Optionally handle any effects or sounds before destroying
-        Destroy(gameObject); // Destroy the prop itself
-    }
-
-
-    public void Shoot()
-    {
-        Debug.Log("Shooting triggered");
-
-        Ray ray = new Ray(FPScam.position, FPScam.forward);
-        RaycastHit hit;
-
-        // Define a layer mask to ignore the player
-        int layerMask = LayerMask.GetMask("Prop"); // Assuming your props are on a layer named "Prop"
-
-        if (Physics.Raycast(ray, out hit, Mathf.Infinity, layerMask))
-        {
-            Debug.Log("Hit a prop: " + hit.collider.name);
-        }
-        else
-        {
-            Debug.Log("No hit detected");
+            rb.isKinematic = false;  // Unfreeze physics
         }
     }
 
     public void HunterMovement()
     {
-        Vector3 forward = transform.TransformDirection(Vector3.forward);
-        Vector3 right = transform.TransformDirection(Vector3.right);
-        // Press Left Shift to run
-        bool isRunning = Input.GetKey(KeyCode.LeftShift);
-        float curSpeedX = canMove ? (isRunning ? runningSpeed : walkingSpeed) * Input.GetAxis("Vertical") : 0;
-        float curSpeedY = canMove ? (isRunning ? runningSpeed : walkingSpeed) * Input.GetAxis("Horizontal") : 0;
-        float movementDirectionY = moveDirection.y;
-        moveDirection = (forward * curSpeedX) + (right * curSpeedY);
+        CheckGrounded();  // Check if the player is grounded
 
-        if (Input.GetButton("Jump") && canMove && characterController.isGrounded)
+        float moveSpeed = Input.GetKey(KeyCode.LeftShift) ? runningSpeed : walkingSpeed;
+
+        // Calculate movement direction based on input
+        float moveX = Input.GetAxis("Horizontal") * moveSpeed;
+        float moveZ = Input.GetAxis("Vertical") * moveSpeed;
+
+        Vector3 move = transform.right * moveX + transform.forward * moveZ;
+        move.y = rb.velocity.y;  // Preserve the current Y velocity
+
+        rb.velocity = move;  // Update the Rigidbody velocity
+
+        if (Input.GetButtonDown("Jump") && isGrounded)
         {
-            moveDirection.y = jumpSpeed;
-        }
-        else
-        {
-            moveDirection.y = movementDirectionY;
-        }
-        if (!characterController.isGrounded)
-        {
-            moveDirection.y -= gravity * Time.deltaTime;
+            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);  // Apply jump force
         }
 
-        // Move the controller
-        characterController.Move(moveDirection * Time.deltaTime);
-
-        // Player and Camera rotation
-        if (canMove)
-        {
-            rotationX += -Input.GetAxis("Mouse Y") * lookSpeed;
-            rotationX = Mathf.Clamp(rotationX, -lookXLimit, lookXLimit);
-            FPScam.transform.localRotation = Quaternion.Euler(rotationX, 0, 0);
-            transform.rotation *= Quaternion.Euler(0, Input.GetAxis("Mouse X") * lookSpeed, 0);
-        }
-
-}
+        // Look around
+        rotationX += -Input.GetAxis("Mouse Y") * lookSpeed;
+        rotationX = Mathf.Clamp(rotationX, -lookXLimit, lookXLimit);
+        FPScam.transform.localRotation = Quaternion.Euler(rotationX, 0, 0);
+        transform.rotation *= Quaternion.Euler(0, Input.GetAxis("Mouse X") * lookSpeed, 0);
+    }
 
     public void Movement()
     {

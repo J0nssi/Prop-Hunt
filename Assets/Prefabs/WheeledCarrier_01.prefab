@@ -21,15 +21,19 @@ PrefabInstance:
       value: Prop
       objectReference: {fileID: 0}
     - target: {fileID: 400000, guid: feb5da2b507b3724f8c0c6e6a346f8c8, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: -0
+      propertyPath: m_LocalRotation.w
+      value: 0.7071068
       objectReference: {fileID: 0}
     - target: {fileID: 400000, guid: feb5da2b507b3724f8c0c6e6a346f8c8, type: 3}
-      propertyPath: m_LocalPosition.y
+      propertyPath: m_LocalRotation.x
+      value: -0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: feb5da2b507b3724f8c0c6e6a346f8c8, type: 3}
+      propertyPath: m_LocalRotation.y
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 400000, guid: feb5da2b507b3724f8c0c6e6a346f8c8, type: 3}
-      propertyPath: m_LocalPosition.z
+      propertyPath: m_LocalRotation.z
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 400000, guid: feb5da2b507b3724f8c0c6e6a346f8c8, type: 3}
